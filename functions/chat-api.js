@@ -15,7 +15,7 @@ class ChatApi {
 
 
 
-    sendDirectMessage(sender_id, sender_fullname, recipient_id, recipient_fullname, text, app_id, attributes, timestamp) {
+    sendDirectMessage(sender_id, sender_fullname, recipient_id, recipient_fullname, text, app_id, attributes, timestamp, type, metadata) {
 
             var path = '/apps/'+app_id+'/users/'+sender_id+'/messages/'+recipient_id;
             // console.log("path", path);
@@ -39,8 +39,19 @@ class ChatApi {
 
             message.channel_type = "direct";
             message.text = text;
-            message.type = "text";
+
+
+            if (type) {
+                message.type = type;
+            }else {
+                message.type = "text";
+            }
+
         
+            if (metadata) {
+                message.metadata = metadata;
+            }
+
             console.log("sendDirectMessage with message " + JSON.stringify(message)  + " to " + path);
             return admin.database().ref(path).push(message);
         }
@@ -49,7 +60,7 @@ class ChatApi {
 
 
 
-    sendGroupMessage(sender_id, sender_fullname, recipient_group_id, recipient_group_fullname, text, app_id, attributes, projectid, timestamp) {
+    sendGroupMessage(sender_id, sender_fullname, recipient_group_id, recipient_group_fullname, text, app_id, attributes, projectid, timestamp, type, metadata) {
 
         var path = '/apps/'+app_id+'/users/'+sender_id+'/messages/'+recipient_group_id;
         // console.log("path", path);
@@ -73,11 +84,22 @@ class ChatApi {
 
         message.channel_type = "group";
         message.text = text;
-        message.type = "text";
+      
+        
+        if (type) {
+            message.type = type;
+        }else {
+            message.type = "text";
+        }
 
         if (projectid) {
             message.projectid = projectid;
         }
+
+        if (metadata) {
+            message.metadata = metadata;
+        }
+
 
         console.log("sendGroupMessage with  message " + JSON.stringify(message)  + " to " + path);
         return admin.database().ref(path).push(message);   //send message to group timeline
@@ -380,6 +402,19 @@ class ChatApi {
             conversation.senderAuthInfo = message.senderAuthInfo;
         }
     
+
+
+
+        // // Reference.update failed: First argument contains a path /5c596c7872b9dc001611eab7 that is ancestor of another path /5c596c7872b9dc001611eab7/attributes 
+        // var path = '/apps/'+app_id+'/users/'+sender_id+'/conversations';    
+        // var updates = {};
+        // updates["/"+recipient_id] = conversation;
+        // updates["/"+recipient_id+"/attributes"] = message.attributes;
+        // console.log('creating conversation updates ' + JSON.stringify(updates) + " to: "+ path);    
+        // return admin.database().ref(path).update(updates);
+
+
+
         //delete archived conv if present
     //    chatApi.deleteArchivedConversation(sender_id, recipient_id, app_id);
     

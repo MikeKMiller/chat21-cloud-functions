@@ -29,6 +29,8 @@ const agent = new https.Agent({keepAlive: true});
 
 
 exports.createGroupForNewSupportRequest = functions.database.ref('/apps/{app_id}/messages/{recipient_id}').onCreate((data, context) => {
+    // exports.createGroupForNewSupportRequest = functions.database.ref('/DEPRECATED/apps/{app_id}/messages/{recipient_id}').onCreate((data, context) => {
+
     // const sender_id = context.params.sender_id; 
     const recipient_id = context.params.recipient_id;
     const app_id = context.params.app_id;;
@@ -72,15 +74,28 @@ exports.createGroupForNewSupportRequest = functions.database.ref('/apps/{app_id}
     chatApi.typing("system", group_id, app_id);
 
 
-    var projectid = message.projectid;
-    console.log('projectId',projectid);
+    // var projectid = message.projectid;
+    // console.log('projectId',projectid);
 
 
     var departmentid = "default";
-    if (message.attributes && message.attributes.departmentId && !message.attributes.departmentId==""){
-        departmentid =  message.attributes.departmentId;
+    var projectid = undefined;
+
+    if (message.attributes) {
+
+        if (message.attributes.departmentId && !message.attributes.departmentId==""){
+            departmentid =  message.attributes.departmentId;
+        }
+        if (message.attributes.projectId) {
+            projectid = message.attributes.projectId;
+        }     
+    } 
+
+    if (!projectid) { //BACKcompatibility
+        projectid = message.projectid
     }
     console.log('departmentid', departmentid);
+    console.log('projectId',projectid);
 
 
 
@@ -796,15 +811,16 @@ exports.botreplyWithTwoReply = functions.database.ref('/apps/{app_id}/users/{sen
 
             if (external==true) {
                 console.log('it s an external bot.exit'); 
-                return 0;
+                return chatApi.stopTyping(sender_id, recipient_id, app_id);
+                // return 0;
             }
 
-            let kbkey_remote = response.kbkey_remote;
-            console.log('kbkey_remote', kbkey_remote); 
+            // let kbkey_remote = response.kbkey_remote;
+            // console.log('kbkey_remote', kbkey_remote); 
             
             
             // return chatBotSupportApi.askToQnaBot(message.text, "https://westus.api.cognitive.microsoft.com/qnamaker/v2.0/knowledgebases/608f7647-2608-4600-b1e2-c7d4baf21e77/generateAnswer", "5e9c35eada754400852ccfb34e6711cb").then(function(qnaresp) {
-            return chatBotSupportApi.askToInternalQnaBot(kbkey_remote, message.text, message).then(function(qnaresp) {
+            return chatBotSupportApi.askToInternalQnaBot(bot_id, message.text, projectid, message).then(function(qnaresp) {
             
                 chatApi.stopTyping(sender_id, recipient_id, app_id);
         
@@ -826,19 +842,32 @@ exports.botreplyWithTwoReply = functions.database.ref('/apps/{app_id}/users/{sen
                 }
 
                 var timestamp = Date.now();
-
-                var botask = chatBotSupportApi.getBotMessage(qnaresp, projectid, departmentid, message, response, agent).then(function(bot_answer) {
-                    if (bot_answer) {
-                        return chatApi.sendGroupMessage(sender_id, sender_fullname, recipient_id, recipient_group_fullname, bot_answer, app_id, null, null, timestamp+1)
+                                            // getBotMessageOnlyDefaultFallBack(qnaresp, projectid, departmentid, message, bot, agent)
+                var botask = chatBotSupportApi.getBotMessageOnlyDefaultFallBack(qnaresp, projectid, departmentid, message, response, agent).then(function(bot_answer) {
+                // var botask = chatBotSupportApi.getBotMessage(qnaresp, projectid, departmentid, message, response, agent).then(function(bot_answer) {
+                    
+                    if (bot_answer.text) {
+                        console.log('bot_answer.text', bot_answer.text); 
+                                    // sendGroupMessage(sender_id, sender_fullname, recipient_group_id, recipient_group_fullname, text, app_id, attributes, projectid, timestamp, type, metadata) {
+                        return chatApi.sendGroupMessage(sender_id, sender_fullname, recipient_id, recipient_group_fullname, bot_answer.text, app_id, bot_answer.attributes, null, timestamp+1)
+                        
                     }
                 });
 
+
+                
                 var botreply = function() {
                     if (answer && answer.length>0) {
-                        chatApi.sendGroupMessage(sender_id, sender_fullname, recipient_id, recipient_group_fullname, answer, app_id, null, null, timestamp);
+                        // getButtonFromText(text, message, bot) { 
+                        chatBotSupportApi.getButtonFromText(answer, message, response,qnaresp).then(function(parsedText) {
+                            // sendGroupMessage(sender_id, sender_fullname, recipient_group_id, recipient_group_fullname, text, app_id, attributes, projectid, timestamp, type, metadata) {
+                                chatApi.sendGroupMessage(sender_id, sender_fullname, recipient_id, recipient_group_fullname, parsedText.text, app_id, parsedText.attributes, null, timestamp, parsedText.type, parsedText.metadata);
+                        });
+
+                      
                     }
                 }
-               
+                               
                 return Promise.all([botreply(), botask]);
                 
         
